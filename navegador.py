@@ -43,4 +43,14 @@ def cargar_pagina_principal(pagina):
     print("✅ Página principal cargada correctamente.")
 
 
-# Funcion que se encaga de navegar a una subpagina y 
+# Funcion que se encaga de navegar a una subpagina 
+def cargar_subpagina(pagina,url):
+
+    """Navega a una subpagina y espera a que cargue"""
+    print(f"🌐 Navegando a la subpágina: {url}...")
+
+    # Vamos a la pagina que deseamos
+    pagina.goto(url)
+    # Esperamos a que se cargue el contenido dinamico de la subpagina
+    pagina.wait_for_load_state("networkidle")
+    print("✅ Subpágina cargada correctamente.")
