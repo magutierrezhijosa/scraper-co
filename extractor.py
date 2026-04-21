@@ -54,13 +54,13 @@ def extraer_pdfs(pagina):
     # Obtenemos el contenido HTML de la pagina 
     html = pagina.content()
 
-    # Analizamos el HTML con BeautifulSoup 
+    # Analizamos el HTML con BeautifulSoup y lo parseamos con html.parser para poder buscar los enlaces a PDFs
     soup = BeautifulSoup(html, "html.parser")
 
     # Creamos na tupla para almacenar los enlaces a PDFs encontrados
     pdfs = []
 
-    # Buscamos todos los enlaces en la pagina
+    # Buscamos todos los enlaces en la pagina 
     for enlace in soup.find_all("a", href=True):
 
         # Recogemos el enlace 
@@ -70,4 +70,16 @@ def extraer_pdfs(pagina):
         if href.lower().endswith(".pdf"):
 
             # Construimos la URL completa si es  relativa 
-            
+            url_pdf = href if href.startswith("http") else BASE_URL + href
+
+            # Guardamos el titulo del PDF (el texto del enlace)
+            titulo_pdf = enlace.get_text(strip=True) or "PDF sin título"
+
+            # Agregamos el PDF a la lista
+            pdfs.append({
+                "titulo_publicacion": titulo_pdf,
+                "url_pdf": url_pdf
+            })
+
+    return pdfs
+
