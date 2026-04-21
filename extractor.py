@@ -26,7 +26,7 @@ def obtener_publicaciones(pagina):
     for item in items:
 
         # Buscamos el enlace dentro del elemento usando el selector CSS
-        enlace = item.find("a", class_="glelha-item-titulo")
+        enlace = item.find("a", class_="grelha-item-titulo")
 
         if enlace:
 
@@ -57,7 +57,7 @@ def extraer_pdfs(pagina):
     # Analizamos el HTML con BeautifulSoup y lo parseamos con html.parser para poder buscar los enlaces a PDFs
     soup = BeautifulSoup(html, "html.parser")
 
-    # Creamos na tupla para almacenar los enlaces a PDFs encontrados
+    # Creamos una lista para almacenar los enlaces a PDFs encontrados
     pdfs = []
 
     # Buscamos todos los enlaces en la pagina 
