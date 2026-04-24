@@ -87,36 +87,38 @@ def extraer_pdfs(pagina):
 
 # Declaramos la funcion para extraer los enlaces internos 
 def extraer_enlaces_internos(pagina):
+    """Busca enlaces internos que puedan llevar a subpáginas con PDFs"""
 
-    """Busca los enlaces internos que puedan llevar a subpaginas con PDFs"""
-
-    # Obtenemos el contenido de la pagina 
     html = pagina.content()
-
-    # Analizamos el HTML con BeautifulSoup
     soup = BeautifulSoup(html, "html.parser")
 
-    # creamos una lista para almacenar los enlaces internos encontrados 
+    # Páginas de navegación que debemos ignorar
+    PAGINAS_EXCLUIDAS = ["/map", "/destaques", "/contactos", "/sobre"]
+
     enlaces = []
-
-    # Buscamos todos los enlaces en la pagina parseada y verificamos si son enlaces internos (que no comienzan con http o https)
     for enlace in soup.find_all("a", href=True):
-
-        # Recogemos el href de cada enlace que recorremos en el bucle
         href = enlace.get("href")
 
-        # Solo nos interesan los enlaces internos qque no sean enlaces PDF (que terminan con .pdf) y que no comienzan con http o https
-        if href.startswith("/") and not href.lower().endswith(".pdf"):
+        # Solo enlaces internos que no sean PDFs
+        if not href.startswith("/") or href.lower().endswith(".pdf"):
+            continue
 
-           # Guardamos el enlace completo construyendo la URL completa si es relativa
-           url_completa = BASE_URL + href
+        # Ignorar páginas de navegación genéricas
+        if any(href == excluida for excluida in PAGINAS_EXCLUIDAS):
+            continue
 
-           # Comprobamos que el enlace no esté ya en la lista de enlaces para evitar duplicados
-           if url_completa not in enlaces:
+        # Ignorar la raíz del sitio
+        if href == "/":
+            continue
 
-            # Agregamos el enlace a la lista de enlaces internos
-            enlaces.append(url_completa) 
+        # Solo nos interesan páginas de contenido
+        PATRONES_CONTENIDO = ["/art/", "/artpub/", "/pagina/"]
+        if not any(patron in href for patron in PATRONES_CONTENIDO):
+            continue
 
+        url_completa = BASE_URL + href
+        if url_completa not in enlaces:
+            enlaces.append(url_completa)
 
     return enlaces
 
@@ -162,14 +164,19 @@ def buscar_pdfs_recursivo(pagina, url, titulo_publicacion, profundidad=0):
         # Condicion de parada 3 - encontramos PDFs , no seguimos buscando
         print(f"  {'  ' * profundidad}✅ {len(pdfs)} PDF(s) encontrados")
 
+        # Usamos un set para evitar duplicados
+        urls_ya_guardadas = {r["url_pdf"] for r in resultados}
+
         # Recorremos los PDFs encontrados y agregamos el título de la publicación a cada uno para tener un contexto de donde se encontró el PDF
         for pdf in pdfs:
 
-            resultados.append({
-                "titulo_publicacion": titulo_publicacion,
-                "titulo_pdf": pdf["titulo_publicacion"],
-                "url_pdf": pdf["url_pdf"]
-            })      
+            if pdf["url_pdf"] not in urls_ya_guardadas:
+                resultados.append({
+                    "titulo_publicacion": titulo_publicacion,
+                    "titulo_pdf": pdf["titulo_publicacion"],
+                    "url_pdf": pdf["url_pdf"]
+                })
+                urls_ya_guardadas.add(pdf["url_pdf"])
 
     else:
 
