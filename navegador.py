@@ -54,3 +54,31 @@ def cargar_subpagina(pagina,url):
     # Esperamos a que se cargue el contenido dinamico de la subpagina
     pagina.wait_for_load_state("networkidle")
     print("✅ Subpágina cargada correctamente.")
+
+
+# Funcion encargada de hacer click en "Ver más" para cargar mas publicaciones
+def click_ver_mais(pagina):
+
+    # Introducimos el codigo en un try para manejar posibles errores si el boton no se encuentra o no se puede hacer click
+    try:
+
+        # Buscamos el boton "Ver más" en la pagina usando el selector CSS
+        boton = pagina.query_selector("a[href='#ver-mais']")
+
+        # Si el boton existe, hacemos click en el y esperamos a que se cargue el contenido dinamico de la pagina
+        if boton:
+
+            print("  🔽 Botón 'Ver mais' encontrado, haciendo click...")
+
+            # Hacemos click en el boton "Ver más"
+            boton.click()
+
+            # Esperamos a que se cargue el contenido dinamico de la pagina
+            pagina.wait_for_load_state("networkidle")
+
+            return True
+
+    except:
+        pass
+
+    return False
