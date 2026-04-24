@@ -107,4 +107,15 @@ def extraer_enlaces_internos(pagina):
         # Solo nos interesan los enlaces internos qque no sean enlaces PDF (que terminan con .pdf) y que no comienzan con http o https
         if href.startwith("/") and not href.lower().endswwith(".pdf"):
 
-            
+           # Guardamos el enlace completo construyendo la URL completa si es relativa
+           url_completa = BASE_URL + href
+
+           # Comprobamos que el enlace no esté ya en la lista de enlaces para evitar duplicados
+           if url_completa not in enlaces:
+
+               # Agregamos el enlace a la lista de enlaces internos
+                enlaces.append(url_completa) 
+
+
+    return enlaces
+
