@@ -156,4 +156,35 @@ def buscar_pdfs_recursivo(pagina, url, titulo_publicacion, profundidad=0):
     # Buscamos PDFs en la página actual
     pdfs = extraer_pdfs(pagina)
 
-    
+
+    if pdfs:
+
+        # Condicion de parada 3 - encontramos PDFs , no seguimos buscando
+        print(f"  {'  ' * profundidad}✅ {len(pdfs)} PDF(s) encontrados")
+
+        # Recorremos los PDFs encontrados y agregamos el título de la publicación a cada uno para tener un contexto de donde se encontró el PDF
+        for pdf in pdfs:
+
+            resultados.append({
+                "titulo_publicacion": titulo_publicacion,
+                "titulo_pdf": pdf["titulo_publicacion"],
+                "url_pdf": pdf["url_pdf"]
+            })      
+
+    else:
+
+        # No hay PDFs -  buscamos enlaces internos y entramos en ellos
+        enlaces = extraer_enlaces_internos(pagina)
+
+        print(f"  {'  ' * profundidad}↪ Sin PDFs, explorando {len(enlaces)} enlaces internos...")
+
+        # Limitamos el número de enlaces internos a explorar para evitar demasiada recursión
+        for enlace in enlaces[:5]:
+
+            sub_resultados = buscar_pdfs_recursivo(pagina, enlace, titulo_publicacion, profundidad + 1)
+
+            resultados.extend(sub_resultados)
+
+    return resultados
+
+
