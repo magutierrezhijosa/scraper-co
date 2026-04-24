@@ -43,7 +43,7 @@ def obtener_publicaciones(pagina):
             # Agregamos el titulo y el enlace a la lista de publicaciones
             publicaciones.append({
                 "titulo": titulo, 
-                "enlace": url_completa
+                "url": url_completa
             })
 
     return publicaciones
@@ -106,7 +106,7 @@ def extraer_enlaces_internos(pagina):
         href = enlace.get("href")
 
         # Solo nos interesan los enlaces internos qque no sean enlaces PDF (que terminan con .pdf) y que no comienzan con http o https
-        if href.startwith("/") and not href.lower().endswwith(".pdf"):
+        if href.startswith("/") and not href.lower().endswith(".pdf"):
 
            # Guardamos el enlace completo construyendo la URL completa si es relativa
            url_completa = BASE_URL + href
@@ -114,8 +114,8 @@ def extraer_enlaces_internos(pagina):
            # Comprobamos que el enlace no esté ya en la lista de enlaces para evitar duplicados
            if url_completa not in enlaces:
 
-               # Agregamos el enlace a la lista de enlaces internos
-                enlaces.append(url_completa) 
+            # Agregamos el enlace a la lista de enlaces internos
+            enlaces.append(url_completa) 
 
 
     return enlaces

@@ -1,7 +1,7 @@
 ####### MAIN -- Orquestados del scraper #######
 
 from navegador import crear_navegador, cargar_pagina_principal,cerrar_navegador
-from extractor import obtener_publicaciones, extraer_pdfs
+from extractor import buscar_pdfs_recursivo, obtener_publicaciones, extraer_pdfs
 from guardador import guardar_csv
 
 # Declaramos la funcion principal del programa
@@ -20,10 +20,19 @@ def main():
         # Mostramos por consola el numero de publicaciones obtenidas
         print(f"📊 Total publicaciones: {len(publicaciones)}")
 
+        todos_los_resultados = []
+
         # Por ahora solo mostramos los titulos para verificar 
         # Realizamos un bucle para recorrer las publicaciones y mostrar sus titulos
-        for pub in publicaciones:
+        for pub in publicaciones[:3]:
             print(f"📌 Título: {pub['titulo']}")
+
+            resultados = buscar_pdfs_recursivo(pagina, pub['url'], pub['titulo'])
+            todos_los_resultados.extend(resultados)
+
+        print(f"\n📊 Total PDFs encontrados: {len(todos_los_resultados)}")
+        for r in todos_los_resultados:
+            print(f"  📄 {r['titulo_pdf'][:50]} → {r['url_pdf'][:50]}")
 
     # El bloque finally garantiza que el navegador se cerrará correctamente incluso si ocurre un error durante la ejecución del programa
     finally:
