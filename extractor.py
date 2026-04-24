@@ -2,6 +2,7 @@
 
 from bs4 import BeautifulSoup
 from config import BASE_URL, SELECTOR_PUBLICACIONES
+from navegador import click_ver_mais
 
 def obtener_publicaciones(pagina):
 
@@ -119,3 +120,40 @@ def extraer_enlaces_internos(pagina):
 
     return enlaces
 
+def buscar_pdfs_recursivo(pagina, url, titulo_publicacion, profundidad=0):
+
+    """
+    + Busca PDFs en una página
+    + Si no encuentra PDFs busca enlcaes internos y entra en ellos
+    + La profundidad evita bucles infinitos
+    """
+
+    # Condicion de parada 1 - eevitar profundidad infinita
+    if profundidad > 2:
+
+        return []
+    
+    # Condicion de parada 2 - ignorar publicaciones sin titulo 
+    if not titulo_publicacion.strip():
+
+        return []
+
+    # Mostramos por consola el enlace que estamos analizando y la profundidad actual del bucle recursivo para tener una idea de la navegación que está realizando el programa
+    print(f"{'  ' * profundidad}🔍 Buscando PDFs en: {url[:60]}")
+
+    # Creamos una lista para almacenar los PDFs encontrados en esta página y sus subpáginas
+    resultados = []
+
+    # Navegamos a la URL
+    pagina.goto(url)
+
+    # EEsperamos a que se cargue el contenido dinámico de la página
+    pagina.wait_for_load_state("networkidle")
+
+    # Hacemos click en "Ver más" para cargar más publicaciones si el botón existe
+    click_ver_mais(pagina)
+
+    # Buscamos PDFs en la página actual
+    pdfs = extraer_pdfs(pagina)
+
+    
