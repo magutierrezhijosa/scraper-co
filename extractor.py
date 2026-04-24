@@ -83,3 +83,28 @@ def extraer_pdfs(pagina):
 
     return pdfs
 
+
+# Declaramos la funcion para extraer los enlaces internos 
+def extraer_enlaces_internos(pagina):
+
+    """Busca los enlaces internos que puedan llevar a subpaginas con PDFs"""
+
+    # Obtenemos el contenido de la pagina 
+    html = pagina.content()
+
+    # Analizamos el HTML con BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+
+    # creamos una lista para almacenar los enlaces internos encontrados 
+    enlaces = []
+
+    # Buscamos todos los enlaces en la pagina parseada y verificamos si son enlaces internos (que no comienzan con http o https)
+    for enlace in soup.find_all("a", href=True):
+
+        # Recogemos el href de cada enlace que recorremos en el bucle
+        href = enlace.get("href")
+
+        # Solo nos interesan los enlaces internos qque no sean enlaces PDF (que terminan con .pdf) y que no comienzan con http o https
+        if href.startwith("/") and not href.lower().endswwith(".pdf"):
+
+            
