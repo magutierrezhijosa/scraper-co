@@ -1,5 +1,7 @@
 ###### EXTRACTOR -- Analizar HTML y extraer los  datos #######
 
+#### Importamos las librerias necesarias para analizar el HTML y extraer los datos de las publicaciones y los PDFs ####
+
 from bs4 import BeautifulSoup
 from config import BASE_URL, SELECTOR_PUBLICACIONES
 from navegador import click_ver_mais
@@ -115,7 +117,8 @@ def extraer_enlaces_internos(pagina):
         PATRONES_CONTENIDO = ["/art/", "/artpub/", "/pagina/"]
         if not any(patron in href for patron in PATRONES_CONTENIDO):
             continue
-
+        
+        # Construimos la URL completa y la agregamos a la lista si no está ya presente
         url_completa = BASE_URL + href
         if url_completa not in enlaces:
             enlaces.append(url_completa)
