@@ -1,84 +1,54 @@
-###### EXTRACTOR -- Analizar HTML y extraer los  datos #######
-
-#### Importamos las librerias necesarias para analizar el HTML y extraer los datos de las publicaciones y los PDFs ####
-
+###### EXTRACTOR -- Analizar HTML y extraer los datos
+from typing import List, Dict, Optional
 from bs4 import BeautifulSoup
-from config import BASE_URL, SELECTOR_PUBLICACIONES
-from navegador import click_ver_mais
+from playwright.sync_api import Page
+from config import (
+    BASE_URL,
+    SELECTOR_PUBLICACIONES,
+    PAGINAS_EXCLUIDAS,
+    PATRONES_CONTENIDO,
+    MAX_PROFUNDIDAD,
+    MAX_ENLACES_INTERNOS,
+    logger
+)
 
-def obtener_publicaciones(pagina):
 
-    """Exttrae titulo y enlace de cada publicacion de la pagina principal"""
-
-    # Obtenemos el contenido HTML de la pagina
+def obtener_publicaciones(pagina: Page) -> List[Dict[str, str]]:
+    """Extrae título y enlace de cada publicación de la página principal"""
     html = pagina.content()
-
-    # Analizamos el HTML con BeautifulSoup
     soup = BeautifulSoup(html, "html.parser")
-
-    # Buscamos los elementos que contienen las publicaciones usando el selector CSS
     items = soup.find_all("span", class_="grelha-item")
+    logger.info(f"Encontrados {len(items)} publicaciones")
 
-    # Mostramos en pantala los resultados encontrados 
-    print(f"🔍 Encontrados {len(items)} publicaciones")
-
-    # Creamos una lista para almacenar los resultados
-    publicaciones = []
-
-    # Recorremos cada elemento encontrado y extraemos el titulo y el enlace
+    publicaciones: List[Dict[str, str]] = []
     for item in items:
-
-        # Buscamos el enlace dentro del elemento usando el selector CSS
         enlace = item.find("a", class_="grelha-item-titulo")
-
         if enlace:
-
-            # Obtenemos el titulo del enlace y lo limpiamos de espacios en blanco
             titulo = enlace.get_text(strip=True)
-
-            # Obtenemos el enlace del elemento
             href = enlace.get("href")
-
-            # Construimos la URL completa de la publicación
+            if not href:
+                continue
             url_completa = BASE_URL + href
-            
-            # Agregamos el titulo y el enlace a la lista de publicaciones
+
             publicaciones.append({
-                "titulo": titulo, 
+                "titulo": titulo,
                 "url": url_completa
             })
 
     return publicaciones
 
 
-def extraer_pdfs(pagina):
-    """Busca todos los enlaces a PDFs en la pagina actual """
-
-    # Obtenemos el contenido HTML de la pagina 
+def extraer_pdfs(pagina: Page) -> List[Dict[str, str]]:
+    """Busca todos los enlaces a PDFs en la página actual"""
     html = pagina.content()
-
-    # Analizamos el HTML con BeautifulSoup y lo parseamos con html.parser para poder buscar los enlaces a PDFs
     soup = BeautifulSoup(html, "html.parser")
+    pdfs: List[Dict[str, str]] = []
 
-    # Creamos una lista para almacenar los enlaces a PDFs encontrados
-    pdfs = []
-
-    # Buscamos todos los enlaces en la pagina 
     for enlace in soup.find_all("a", href=True):
-
-        # Recogemos el enlace 
         href = enlace.get("href")
-
-        # Verificamos si el enlace termina con .pdf (indicando que es un PDF)
-        if href.lower().endswith(".pdf"):
-
-            # Construimos la URL completa si es  relativa 
+        if href and href.lower().endswith(".pdf"):
             url_pdf = href if href.startswith("http") else BASE_URL + href
-
-            # Guardamos el titulo del PDF (el texto del enlace)
             titulo_pdf = enlace.get_text(strip=True) or "PDF sin título"
-
-            # Agregamos el PDF a la lista
             pdfs.append({
                 "titulo_publicacion": titulo_pdf,
                 "url_pdf": url_pdf
@@ -87,116 +57,90 @@ def extraer_pdfs(pagina):
     return pdfs
 
 
-# Declaramos la funcion para extraer los enlaces internos 
-def extraer_enlaces_internos(pagina):
+def extraer_enlaces_internos(pagina: Page) -> List[str]:
     """Busca enlaces internos que puedan llevar a subpáginas con PDFs"""
-
     html = pagina.content()
     soup = BeautifulSoup(html, "html.parser")
+    enlaces: List[str] = []
 
-    # Páginas de navegación que debemos ignorar
-    PAGINAS_EXCLUIDAS = ["/map", "/destaques", "/contactos", "/sobre"]
-
-    enlaces = []
     for enlace in soup.find_all("a", href=True):
         href = enlace.get("href")
-
-        # Solo enlaces internos que no sean PDFs
-        if not href.startswith("/") or href.lower().endswith(".pdf"):
+        if not href or not href.startswith("/"):
             continue
-
-        # Ignorar páginas de navegación genéricas
-        if any(href == excluida for excluida in PAGINAS_EXCLUIDAS):
+        if href.lower().endswith(".pdf"):
             continue
-
-        # Ignorar la raíz del sitio
+        if any(href.startswith(excluida) for excluida in PAGINAS_EXCLUIDAS):
+            continue
         if href == "/":
             continue
-
-        # Solo nos interesan páginas de contenido
-        PATRONES_CONTENIDO = ["/art/", "/artpub/", "/pagina/"]
         if not any(patron in href for patron in PATRONES_CONTENIDO):
             continue
-        
-        # Construimos la URL completa y la agregamos a la lista si no está ya presente
+
         url_completa = BASE_URL + href
         if url_completa not in enlaces:
             enlaces.append(url_completa)
 
     return enlaces
 
-def buscar_pdfs_recursivo(pagina, url, titulo_publicacion, profundidad=0, urls_ya_guardadas=None):
 
+def buscar_pdfs_recursivo(
+    pagina: Page,
+    url: str,
+    titulo_publicacion: str,
+    profundidad: int = 0,
+    urls_ya_guardadas: Optional[set] = None
+) -> List[Dict[str, str]]:
     """
-    + Busca PDFs en una página
-    + Si no encuentra PDFs busca enlcaes internos y entra en ellos
-    + La profundidad evita bucles infinitos
+    Busca PDFs en una página recursivamente.
+    Si no encuentra PDFs, explora enlaces internos.
+    La profundidad evita bucles infinitos.
     """
-
-    # Inicializamos el set solo en la primera llamada
     if urls_ya_guardadas is None:
         urls_ya_guardadas = set()
 
-    # Condicion de parada 1 - eevitar profundidad infinita
-    if profundidad > 2:
-
-        return []
-    
-    # Condicion de parada 2 - ignorar publicaciones sin titulo 
-    if not titulo_publicacion.strip():
-
+    if profundidad > MAX_PROFUNDIDAD:
         return []
 
-    # Mostramos por consola el enlace que estamos analizando y la profundidad actual del bucle recursivo para tener una idea de la navegación que está realizando el programa
-    print(f"{'  ' * profundidad}🔍 Buscando PDFs en: {url[:60]}")
+    if not titulo_publicacion or not titulo_publicacion.strip():
+        return []
 
-    # Creamos una lista para almacenar los PDFs encontrados en esta página y sus subpáginas
-    resultados = []
+    logger.info(f"{'  ' * profundidad}Buscando PDFs en: {url[:60]}")
 
-    # Navegamos a la URL
-    pagina.goto(url)
+    resultados: List[Dict[str, str]] = []
 
-    # EEsperamos a que se cargue el contenido dinámico de la página
-    pagina.wait_for_load_state("networkidle")
+    try:
+        pagina.goto(url, timeout=30000)
+        pagina.wait_for_load_state("networkidle", timeout=30000)
 
-    # Hacemos click en "Ver más" para cargar más publicaciones si el botón existe
-    click_ver_mais(pagina)
+        from navegador import click_ver_mais
+        click_ver_mais(pagina)
 
-    # Buscamos PDFs en la página actual
-    pdfs = extraer_pdfs(pagina)
+        pdfs = extraer_pdfs(pagina)
 
+        if pdfs:
+            logger.info(f"{'  ' * profundidad}{len(pdfs)} PDF(s) encontrados")
+            for pdf in pdfs:
+                if pdf["url_pdf"] not in urls_ya_guardadas:
+                    resultados.append({
+                        "titulo_publicacion": titulo_publicacion,
+                        "titulo_pdf": pdf["titulo_publicacion"],
+                        "url_pdf": pdf["url_pdf"]
+                    })
+                    urls_ya_guardadas.add(pdf["url_pdf"])
+        else:
+            enlaces = extraer_enlaces_internos(pagina)
+            logger.info(f"{'  ' * profundidad}Sin PDFs, explorando {len(enlaces)} enlaces internos...")
+            for enlace in enlaces[:MAX_ENLACES_INTERNOS]:
+                sub_resultados = buscar_pdfs_recursivo(
+                    pagina,
+                    enlace,
+                    titulo_publicacion,
+                    profundidad + 1,
+                    urls_ya_guardadas
+                )
+                resultados.extend(sub_resultados)
 
-    if pdfs:
-
-        # Condicion de parada 3 - encontramos PDFs , no seguimos buscando
-        print(f"  {'  ' * profundidad}✅ {len(pdfs)} PDF(s) encontrados")
-
-
-        # Recorremos los PDFs encontrados y agregamos el título de la publicación a cada uno para tener un contexto de donde se encontró el PDF
-        for pdf in pdfs:
-
-            if pdf["url_pdf"] not in urls_ya_guardadas:
-                resultados.append({
-                    "titulo_publicacion": titulo_publicacion,
-                    "titulo_pdf": pdf["titulo_publicacion"],
-                    "url_pdf": pdf["url_pdf"]
-                })
-                urls_ya_guardadas.add(pdf["url_pdf"])
-
-    else:
-
-        # No hay PDFs -  buscamos enlaces internos y entramos en ellos
-        enlaces = extraer_enlaces_internos(pagina)
-
-        print(f"  {'  ' * profundidad}↪ Sin PDFs, explorando {len(enlaces)} enlaces internos...")
-
-        # Limitamos el número de enlaces internos a explorar para evitar demasiada recursión
-        for enlace in enlaces[:5]:
-
-            sub_resultados = buscar_pdfs_recursivo(pagina, enlace, titulo_publicacion, profundidad + 1,urls_ya_guardadas)
-
-            resultados.extend(sub_resultados)
+    except Exception as e:
+        logger.error(f"Error al procesar {url}: {e}")
 
     return resultados
-
-

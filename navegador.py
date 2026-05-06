@@ -1,84 +1,104 @@
-
-
 ############# NAVEGADOR - Funciones relacionadas con Playwright
 
-from playwright.sync_api import sync_playwright
-from config import URL_DESTAQUES, SELECTOR_PUBLICACIONES
+import time
+from typing import Tuple, Optional
 
-# Creamos la funcion que crea el navegador 
-def crear_navegador():
+from playwright.sync_api import sync_playwright, Browser, Page, Playwright
+from config import (
+    URL_DESTAQUES,
+    SELECTOR_PUBLICACIONES,
+    HEADLESS,
+    TIMEOUT_NAVEGAR,
+    TIMEOUT_LOAD_STATE,
+    MAX_REINTENTOS,
+    REINTENTO_ESPERA,
+    logger
+)
 
-    """Inicia playright y devuelve el navegador y el contexto"""
-    playright = sync_playwright().start()
-
-    # Abrimos un nuevo navegador 
-    navegador = playright.chromium.launch(headless=False)
-
-    # Abrimos una nueva pagina 
+def crear_navegador() -> Tuple[Playwright, Browser, Page]:
+    """Inicia Playwright y devuelve el navegador y la página"""
+    playwright = sync_playwright().start()
+    navegador = playwright.chromium.launch(headless=HEADLESS)
     pagina = navegador.new_page()
+    return playwright, navegador, pagina
 
-    return playright, navegador, pagina
 
-
-# Funcion encargada de cerrar el navegador y el contexto
-def cerrar_navegador(playright,navegador):
-    
+def cerrar_navegador(playwright: Playwright, navegador: Browser) -> None:
     """Cierra el navegador y Playwright correctamente"""
-    navegador.close()
-    playright.stop()
-
-
-# Funcion que se encarga  de ir a la pagina principal y esperar a que se carguen todo el contenido dinamico de la pagina , hasta poder recoger los selectores 
-def cargar_pagina_principal(pagina):
-
-    """Navega a la pagina principal y espera a que cargue"""
-    print("🌐 Abriendo la página principal...")
-
-    # Vamos a la pagina que deseamos
-    pagina.goto(URL_DESTAQUES)
-    # Esperamos a que se cargue el contenido dinamico de la pagina s
-    pagina.wait_for_load_state("networkidle")
-    # Esperamos a que se carguen los selectores de las publicaciones
-    pagina.wait_for_selector(SELECTOR_PUBLICACIONES)
-    print("✅ Página principal cargada correctamente.")
-
-
-# Funcion que se encaga de navegar a una subpagina 
-def cargar_subpagina(pagina,url):
-
-    """Navega a una subpagina y espera a que cargue"""
-    print(f"🌐 Navegando a la subpágina: {url}...")
-
-    # Vamos a la pagina que deseamos
-    pagina.goto(url)
-    # Esperamos a que se cargue el contenido dinamico de la subpagina
-    pagina.wait_for_load_state("networkidle")
-    print("✅ Subpágina cargada correctamente.")
-
-
-# Funcion encargada de hacer click en "Ver más" para cargar mas publicaciones
-def click_ver_mais(pagina):
-
-    # Introducimos el codigo en un try para manejar posibles errores si el boton no se encuentra o no se puede hacer click
     try:
+        navegador.close()
+        playwright.stop()
+    except Exception as e:
+        logger.error(f"Error al cerrar el navegador: {e}")
 
-        # Buscamos el boton "Ver más" en la pagina usando el selector CSS
-        boton = pagina.query_selector("a[href='#ver-mais']")
 
-        # Si el boton existe, hacemos click en el y esperamos a que se cargue el contenido dinamico de la pagina
-        if boton:
-
-            print("  🔽 Botón 'Ver mais' encontrado, haciendo click...")
-
-            # Hacemos click en el boton "Ver más"
-            boton.click()
-
-            # Esperamos a que se cargue el contenido dinamico de la pagina
-            pagina.wait_for_load_state("networkidle")
-
+def _navegar_con_reintentos(pagina: Page, url: str) -> bool:
+    """Navega a una URL con reintentos automáticos"""
+    for intento in range(MAX_REINTENTOS):
+        try:
+            pagina.goto(url, timeout=TIMEOUT_NAVEGAR)
             return True
+        except Exception as e:
+            logger.warning(f"Intento {intento + 1}/{MAX_REINTENTOS} fallido: {e}")
+            if intento < MAX_REINTENTOS - 1:
+                time.sleep(REINTENTO_ESPERA)
+    logger.error(f"Error al navegar a {url} después de {MAX_REINTENTOS} intentos")
+    return False
 
-    except:
-        pass
+
+def _esperar_carga(pagina: Page) -> bool:
+    """Espera a que la página cargue completamente"""
+    try:
+        pagina.wait_for_load_state("networkidle", timeout=TIMEOUT_LOAD_STATE)
+        return True
+    except Exception as e:
+        logger.warning(f"Error al esperar carga: {e}")
+        return False
+
+
+def cargar_pagina_principal(pagina: Page) -> bool:
+    """Navega a la página principal y espera a que cargue"""
+    logger.info("Abriendo la página principal...")
+
+    if not _navegar_con_reintentos(pagina, URL_DESTAQUES):
+        return False
+
+    if not _esperar_carga(pagina):
+        return False
+
+    try:
+        pagina.wait_for_selector(SELECTOR_PUBLICACIONES, timeout=TIMEOUT_LOAD_STATE)
+        logger.info("Página principal cargada correctamente.")
+        return True
+    except Exception as e:
+        logger.error(f"No se encontró el selector {SELECTOR_PUBLICACIONES}: {e}")
+        return False
+
+
+def cargar_subpagina(pagina: Page, url: str) -> bool:
+    """Navega a una subpágina y espera a que cargue"""
+    logger.info(f"Navegando a la subpágina: {url}...")
+
+    if not _navegar_con_reintentos(pagina, url):
+        return False
+
+    if not _esperar_carga(pagina):
+        return False
+
+    logger.info("Subpágina cargada correctamente.")
+    return True
+
+
+def click_ver_mais(pagina: Page) -> bool:
+    """Hace click en el botón 'Ver mais' si existe"""
+    try:
+        boton = pagina.query_selector("a[href='#ver-mais']")
+        if boton:
+            logger.info("Botón 'Ver mais' encontrado, haciendo click...")
+            boton.click()
+            _esperar_carga(pagina)
+            return True
+    except Exception as e:
+        logger.debug(f"Botón 'Ver mais' no encontrado o error: {e}")
 
     return False
