@@ -1,5 +1,6 @@
 ############# GUARDADOR - Guardar resultados en CSV ###############
 
+import os
 from typing import List, Dict, Optional
 import pandas as pd
 from config import NOMBRE_CSV, logger
@@ -16,7 +17,9 @@ def guardar_csv(resultados: List[Dict[str, str]], nombre_csv: Optional[str] = No
 
     try:
         df = pd.DataFrame(resultados)
-        df.to_csv(csv_path, index=False, encoding="utf-8-sig")
+        temp_path = csv_path + ".tmp"
+        df.to_csv(temp_path, index=False, encoding="utf-8-sig")
+        os.replace(temp_path, csv_path)
         logger.info(f"CSV guardado con {len(resultados)} resultados en '{csv_path}'")
         return True
     except Exception as e:

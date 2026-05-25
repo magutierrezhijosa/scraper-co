@@ -1,5 +1,6 @@
 ###### EXTRACTOR -- Analizar HTML y extraer los datos
 from typing import List, Dict, Optional
+from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from playwright.sync_api import Page
 from config import (
@@ -9,6 +10,8 @@ from config import (
     PATRONES_CONTENIDO,
     MAX_PROFUNDIDAD,
     MAX_ENLACES_INTERNOS,
+    TIMEOUT_NAVEGAR,
+    TIMEOUT_LOAD_STATE,
     logger
 )
 
@@ -28,7 +31,7 @@ def obtener_publicaciones(pagina: Page) -> List[Dict[str, str]]:
             href = enlace.get("href")
             if not href:
                 continue
-            url_completa = BASE_URL + href
+            url_completa = urljoin(BASE_URL, href)
 
             publicaciones.append({
                 "titulo": titulo,
@@ -47,7 +50,7 @@ def extraer_pdfs(pagina: Page) -> List[Dict[str, str]]:
     for enlace in soup.find_all("a", href=True):
         href = enlace.get("href")
         if href and href.lower().endswith(".pdf"):
-            url_pdf = href if href.startswith("http") else BASE_URL + href
+            url_pdf = urljoin(BASE_URL, href)
             titulo_pdf = enlace.get_text(strip=True) or "PDF sin título"
             pdfs.append({
                 "titulo_publicacion": titulo_pdf,
@@ -76,7 +79,7 @@ def extraer_enlaces_internos(pagina: Page) -> List[str]:
         if not any(patron in href for patron in PATRONES_CONTENIDO):
             continue
 
-        url_completa = BASE_URL + href
+        url_completa = urljoin(BASE_URL, href)
         if url_completa not in enlaces:
             enlaces.append(url_completa)
 
@@ -109,8 +112,8 @@ def buscar_pdfs_recursivo(
     resultados: List[Dict[str, str]] = []
 
     try:
-        pagina.goto(url, timeout=30000)
-        pagina.wait_for_load_state("networkidle", timeout=30000)
+        pagina.goto(url, timeout=TIMEOUT_NAVEGAR)
+        pagina.wait_for_load_state("networkidle", timeout=TIMEOUT_LOAD_STATE)
 
         from navegador import click_ver_mais
         click_ver_mais(pagina)

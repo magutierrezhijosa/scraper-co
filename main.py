@@ -1,5 +1,6 @@
 ####### MAIN -- Orquestador del scraper #######
 
+import sys
 from navegador import crear_navegador, cargar_pagina_principal, cerrar_navegador
 from extractor import buscar_pdfs_recursivo, obtener_publicaciones
 from guardador import guardar_csv, cargar_csv_existente
@@ -55,7 +56,8 @@ def main() -> None:
     except Exception as e:
         logger.error(f"Error inesperado: {e}", exc_info=True)
     finally:
-        input("Presiona Enter para cerrar el programa...")
+        if sys.stdin.isatty():
+            input("Presiona Enter para cerrar el programa...")
         cerrar_navegador(playwright, navegador)
 
 
