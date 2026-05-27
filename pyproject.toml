@@ -1,0 +1,14 @@
+[project]
+name = "scrapper-co"
+version = "0.1.0"
+description = "Scraper para extraer PDFs del sitio dgeec.medu.pt"
+requires-python = ">=3.11"
+dependencies = [
+    "playwright>=1.58",
+    "beautifulsoup4>=4.14",
+    "pandas>=2.0",
+]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.backends._legacy:_Backend"
