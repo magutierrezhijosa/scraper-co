@@ -1,19 +1,11 @@
 ###### EXTRACTOR -- Analizar HTML y extraer los datos
-from typing import List, Dict, Optional
+from typing import Dict, List
 from urllib.parse import urljoin
+
 from bs4 import BeautifulSoup
 from playwright.sync_api import Page
-from config import (
-    BASE_URL,
-    SELECTOR_PUBLICACIONES,
-    PAGINAS_EXCLUIDAS,
-    PATRONES_CONTENIDO,
-    MAX_PROFUNDIDAD,
-    MAX_ENLACES_INTERNOS,
-    TIMEOUT_NAVEGAR,
-    TIMEOUT_LOAD_STATE,
-    logger
-)
+
+from config import BASE_URL, PAGINAS_EXCLUIDAS, PATRONES_CONTENIDO, SELECTOR_PUBLICACIONES, logger
 
 
 def obtener_publicaciones(pagina: Page) -> List[Dict[str, str]]:
@@ -86,64 +78,3 @@ def extraer_enlaces_internos(pagina: Page) -> List[str]:
     return enlaces
 
 
-def buscar_pdfs_recursivo(
-    pagina: Page,
-    url: str,
-    titulo_publicacion: str,
-    profundidad: int = 0,
-    urls_ya_guardadas: Optional[set] = None
-) -> List[Dict[str, str]]:
-    """
-    Busca PDFs en una página recursivamente.
-    Si no encuentra PDFs, explora enlaces internos.
-    La profundidad evita bucles infinitos.
-    """
-    if urls_ya_guardadas is None:
-        urls_ya_guardadas = set()
-
-    if profundidad > MAX_PROFUNDIDAD:
-        return []
-
-    if not titulo_publicacion or not titulo_publicacion.strip():
-        return []
-
-    logger.info(f"{'  ' * profundidad}Buscando PDFs en: {url[:60]}")
-
-    resultados: List[Dict[str, str]] = []
-
-    try:
-        pagina.goto(url, timeout=TIMEOUT_NAVEGAR)
-        pagina.wait_for_load_state("networkidle", timeout=TIMEOUT_LOAD_STATE)
-
-        from navegador import click_ver_mais
-        click_ver_mais(pagina)
-
-        pdfs = extraer_pdfs(pagina)
-
-        if pdfs:
-            logger.info(f"{'  ' * profundidad}{len(pdfs)} PDF(s) encontrados")
-            for pdf in pdfs:
-                if pdf["url_pdf"] not in urls_ya_guardadas:
-                    resultados.append({
-                        "titulo_publicacion": titulo_publicacion,
-                        "titulo_pdf": pdf["titulo_publicacion"],
-                        "url_pdf": pdf["url_pdf"]
-                    })
-                    urls_ya_guardadas.add(pdf["url_pdf"])
-        else:
-            enlaces = extraer_enlaces_internos(pagina)
-            logger.info(f"{'  ' * profundidad}Sin PDFs, explorando {len(enlaces)} enlaces internos...")
-            for enlace in enlaces[:MAX_ENLACES_INTERNOS]:
-                sub_resultados = buscar_pdfs_recursivo(
-                    pagina,
-                    enlace,
-                    titulo_publicacion,
-                    profundidad + 1,
-                    urls_ya_guardadas
-                )
-                resultados.extend(sub_resultados)
-
-    except Exception as e:
-        logger.error(f"Error al procesar {url}: {e}")
-
-    return resultados

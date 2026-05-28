@@ -2,7 +2,8 @@
 
 import sys
 from navegador import crear_navegador, cargar_pagina_principal, cerrar_navegador
-from extractor import buscar_pdfs_recursivo, obtener_publicaciones
+from extractor import obtener_publicaciones
+from orquestador import buscar_pdfs_recursivo
 from guardador import guardar_csv, cargar_csv_existente
 from config import MAX_PUBLICACIONES, logger
 
